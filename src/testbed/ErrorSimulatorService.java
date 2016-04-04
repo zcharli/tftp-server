@@ -361,6 +361,10 @@ public class ErrorSimulatorService implements Runnable {
 			this.mSkipRedirection = false;
 			return;
 		}
+		if(this.mLastPacket == null) {
+			System.err.println("Just to let you know, last packet was null");
+			return;
+		}
 		if (this.mLastPacket.getPort() != this.mClientPort && this.mLastPacket.getPort() != this.mForwardPort) {
 			// Only for an initial
 			logger.print(Logger.ERROR, Strings.ERROR_SERVICE_ERR_CLI);
@@ -619,6 +623,7 @@ public class ErrorSimulatorService implements Runnable {
 					this.mSendReceiveSocket.setSoTimeout(Configurations.TRANMISSION_TIMEOUT * 2);
 					System.err.println("Blocking for next recevied");
 					this.mLastPacket = this.retrievePacketFromSocket();
+					BufferPrinter.printBuffer(this.mLastPacket.getData(), "First reply after lost ack", Logger.ERROR);
 					this.mSendReceiveSocket.setSoTimeout(0);
 					if (this.mLastPacket == null) {
 						logger.print(Logger.ERROR, Strings.ERROR_SERVICE_SHUST_DOWN_THREAD);
