@@ -42,7 +42,7 @@ public class TransmissionError implements Runnable {
 			e.printStackTrace();
 		}
 		synchronized(this.mActiveMonitor) {
-			this.mActiveMonitor.addWorkToFrontOfQueue(this.mPacket);
+			this.mActiveMonitor.addWorkToFrontOfQueue(this.mPacket, true);
 		}
 	}
 
