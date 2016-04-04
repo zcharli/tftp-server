@@ -77,7 +77,7 @@ public class ErrorSimulatorServer implements Callback {
 			e.printStackTrace();
 			System.exit(1);
 		}
-
+		RequestType lastRequest = null;
 		/*
 		 * - Receive packets until the admin console gives the shutdown signal.
 		 * - Since receiving a packet is a blocking operation, timeouts have
@@ -226,6 +226,38 @@ public class ErrorSimulatorServer implements Callback {
 
 					}
 				}
+				
+				// Handles Read Data block 1 
+				if (this.mErrorOptionSettings != null && vLastThread != null && this.LETS_GO
+						&& this.mErrorOptionSettings.getMainErrorFamily() == ErrorType.TRANSMISSION_ERROR
+						&& this.mErrorOptionSettings.getSubErrorFromFamily() == 2
+						&& this.mErrorOptionSettings.getTransmissionErrorFrequency() >= Configurations.TRANMISSION_TIMEOUT - 50
+						&& (this.mErrorOptionSettings.getSimulatedBlocknumber() > 0)
+						&& lastRequest == RequestType.RRQ
+						&& this.mErrorOptionSettings.getTransmissionErrorType() == RequestType.DATA) {
+					receivePacket = new DatagramPacket(buffer, buffer.length);
+					logger.print(Logger.VERBOSE, Strings.ERROR_SERVER_WAITING_INIT);
+					try {
+						logger.print(Logger.VERBOSE,
+								String.format(Strings.ES_INITIALIZED, Configurations.ERROR_SIM_LISTEN_PORT));
+						logger.print(Logger.VERBOSE, Strings.ES_START_LISTENING);
+
+						errorSimulatorSock.receive(receivePacket);
+						System.out.println(BufferPrinter.acceptConnectionMessage(Strings.SERVER_ACCEPT_CONNECTION,
+								receivePacket.getSocketAddress().toString()));
+						this.mErrorOptionSettings.setMainErrorFamily(3);
+						this.mErrorOptionSettings.setSubErrorFromFamily(-1);
+						vLastThread = new ErrorSimulatorService(receivePacket, this, this.mErrorOptionSettings, this.address);
+						Thread service = new Thread(vLastThread, CLASS_TAG);
+						threads.addElement(service);
+						service.start();
+
+						this.LETS_GO = false; // We won't product this error
+												// after
+					} catch (SocketTimeoutException e) {
+
+					}
+				}
 
 				this.mErrorOptionSettings = this.mErrorUI.getErrorCodeFromUser(); // FIX this testInstance);
 				// if (this.mErrorOptionSettings.getTransmissionErrorType())
@@ -244,6 +276,7 @@ public class ErrorSimulatorServer implements Callback {
 				if(this.mClientPort == 0) {
 					this.mClientPort = receivePacket.getPort();
 				}
+				lastRequest = RequestType.matchRequestByNumber(receivePacket.getData()[1]);
 			} catch (SocketTimeoutException e) {
 				continue;
 			} catch (SocketException e) {
