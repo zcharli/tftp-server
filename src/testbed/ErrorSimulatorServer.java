@@ -14,6 +14,7 @@ import resource.Strings;
 import server.Callback;
 import types.ErrorType;
 import types.Logger;
+import types.RequestType;
 import helpers.BufferPrinter;
 import networking.TFTPNetworking;
 
@@ -41,6 +42,7 @@ public class ErrorSimulatorServer implements Callback {
 	//private InstanceType testInstance;
 	private boolean LETS_GO;
 	private InetAddress address;
+	private int mClientPort = 0;
 
 	public static AtomicBoolean active = new AtomicBoolean(true);
 	Vector<Thread> threads;
@@ -90,7 +92,7 @@ public class ErrorSimulatorServer implements Callback {
 						&& this.mErrorOptionSettings.getMainErrorFamily() == ErrorType.TRANSMISSION_ERROR
 						&& this.mErrorOptionSettings.getSubErrorFromFamily() == 2
 						&& this.mErrorOptionSettings.getTransmissionErrorFrequency() >= Configurations.TRANMISSION_TIMEOUT - 50
-						&& this.mErrorOptionSettings.getSimulatedBlocknumber() == -1) {
+						&& (this.mErrorOptionSettings.getSimulatedBlocknumber() == -1)) {
 					receivePacket = new DatagramPacket(buffer, buffer.length);
 					logger.print(Logger.VERBOSE, Strings.ERROR_SERVER_WAITING_INIT);
 					try {
@@ -107,6 +109,99 @@ public class ErrorSimulatorServer implements Callback {
 
 					}
 				}
+				
+				// Handler 
+				if (this.mErrorOptionSettings != null && vLastThread != null && this.LETS_GO
+						&& this.mErrorOptionSettings.getMainErrorFamily() == ErrorType.TRANSMISSION_ERROR
+						&& this.mErrorOptionSettings.getSubErrorFromFamily() == 2
+						&& this.mErrorOptionSettings.getTransmissionErrorFrequency() >= Configurations.TRANMISSION_TIMEOUT - 50
+						&& (this.mErrorOptionSettings.getSimulatedBlocknumber() == 0)
+						&& this.mErrorOptionSettings.getTransmissionErrorType() == RequestType.ACK) {
+					receivePacket = new DatagramPacket(buffer, buffer.length);
+					logger.print(Logger.VERBOSE, Strings.ERROR_SERVER_WAITING_INIT);
+					try {
+						logger.print(Logger.VERBOSE,
+								String.format(Strings.ES_INITIALIZED, Configurations.ERROR_SIM_LISTEN_PORT));
+						logger.print(Logger.VERBOSE, Strings.ES_START_LISTENING);
+
+						errorSimulatorSock.receive(receivePacket);
+						System.out.println(BufferPrinter.acceptConnectionMessage(Strings.SERVER_ACCEPT_CONNECTION,
+								receivePacket.getSocketAddress().toString()));
+						this.mErrorOptionSettings.setMainErrorFamily(3);
+						this.mErrorOptionSettings.setSubErrorFromFamily(-1);
+						vLastThread = new ErrorSimulatorService(receivePacket, this, this.mErrorOptionSettings, this.address);
+						Thread service = new Thread(vLastThread, CLASS_TAG);
+						threads.addElement(service);
+						service.start();
+
+						this.LETS_GO = false; // We won't product this error
+												// after
+					} catch (SocketTimeoutException e) {
+
+					}
+				}
+				
+				// handle lose first block 0 ack
+				if (this.mErrorOptionSettings != null && vLastThread != null && this.LETS_GO
+						&& this.mErrorOptionSettings.getMainErrorFamily() == ErrorType.TRANSMISSION_ERROR
+						&& this.mErrorOptionSettings.getSubErrorFromFamily() == 1
+						&& (this.mErrorOptionSettings.getSimulatedBlocknumber() == 0)
+						&& this.mErrorOptionSettings.getTransmissionErrorType() == RequestType.ACK) {
+					receivePacket = new DatagramPacket(buffer, buffer.length);
+					logger.print(Logger.VERBOSE, Strings.ERROR_SERVER_WAITING_INIT);
+					try {
+						logger.print(Logger.VERBOSE,
+								String.format(Strings.ES_INITIALIZED, Configurations.ERROR_SIM_LISTEN_PORT));
+						logger.print(Logger.VERBOSE, Strings.ES_START_LISTENING);
+
+						errorSimulatorSock.receive(receivePacket);
+						System.out.println(BufferPrinter.acceptConnectionMessage(Strings.SERVER_ACCEPT_CONNECTION,
+								receivePacket.getSocketAddress().toString()));
+						this.mErrorOptionSettings.setMainErrorFamily(3);
+						this.mErrorOptionSettings.setSubErrorFromFamily(-1);
+						vLastThread = new ErrorSimulatorService(receivePacket, this, this.mErrorOptionSettings, this.address);
+						Thread service = new Thread(vLastThread, CLASS_TAG);
+						threads.addElement(service);
+						service.start();
+
+						this.LETS_GO = false; // We won't product this error
+												// after
+					} catch (SocketTimeoutException e) {
+
+					}
+				}
+				
+				// Handle lose first data block 1, but only happens with acks this case
+				if (this.mErrorOptionSettings != null && vLastThread != null && this.LETS_GO
+						&& this.mErrorOptionSettings.getMainErrorFamily() == ErrorType.TRANSMISSION_ERROR
+						&& this.mErrorOptionSettings.getSubErrorFromFamily() == 1
+						&& (this.mErrorOptionSettings.getSimulatedBlocknumber() == 1)
+						&& this.mErrorOptionSettings.getTransmissionErrorType() == RequestType.ACK) {
+					receivePacket = new DatagramPacket(buffer, buffer.length);
+					logger.print(Logger.VERBOSE, Strings.ERROR_SERVER_WAITING_INIT);
+					try {
+						logger.print(Logger.VERBOSE,
+								String.format(Strings.ES_INITIALIZED, Configurations.ERROR_SIM_LISTEN_PORT));
+						logger.print(Logger.VERBOSE, Strings.ES_START_LISTENING);
+						System.err.println("Lose first datablock 1");
+						errorSimulatorSock.receive(receivePacket);
+						System.err.println("Lose recv datablock 1");
+						System.out.println(BufferPrinter.acceptConnectionMessage(Strings.SERVER_ACCEPT_CONNECTION,
+								receivePacket.getSocketAddress().toString()));
+						this.mErrorOptionSettings.setMainErrorFamily(3);
+						this.mErrorOptionSettings.setSubErrorFromFamily(-1);
+						vLastThread = new ErrorSimulatorService(receivePacket, this, this.mErrorOptionSettings, this.address);
+						Thread service = new Thread(vLastThread, CLASS_TAG);
+						threads.addElement(service);
+						service.start();
+
+						this.LETS_GO = false; // We won't product this error
+												// after
+					} catch (SocketTimeoutException e) {
+
+					}
+				}
+				
 				// Handles lost initiating packet
 				if (this.mErrorOptionSettings != null && vLastThread != null && this.LETS_GO
 						&& this.mErrorOptionSettings.getMainErrorFamily() == ErrorType.TRANSMISSION_ERROR
@@ -146,6 +241,9 @@ public class ErrorSimulatorServer implements Callback {
 				logger.print(Logger.VERBOSE, Strings.ES_START_LISTENING);
 
 				errorSimulatorSock.receive(receivePacket);
+				if(this.mClientPort == 0) {
+					this.mClientPort = receivePacket.getPort();
+				}
 			} catch (SocketTimeoutException e) {
 				continue;
 			} catch (SocketException e) {

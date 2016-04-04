@@ -158,11 +158,7 @@ public class TFTPNetworking {
 								logger.print(Logger.ERROR, String
 										.format("Retransmission retried %d times, no reply, shutting down.", retries));
 							}
-
-							if (errorChecker.getExpectedBlockNumber() == 0) {// Timeout
-																				// on
-																				// first
-																				// block.
+							if (errorChecker.getExpectedBlockNumber() == 0) {
 								return null;
 							}
 							retriesExceeded = true;
@@ -171,7 +167,6 @@ public class TFTPNetworking {
 						}
 						continue;
 					}
-
 					lastPacket = receivePacket;
 					if (errorChecker == null) {
 						errorChecker = new ErrorChecker(new DataPacket(lastPacket));
