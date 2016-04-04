@@ -623,7 +623,8 @@ public class ErrorSimulatorService implements Runnable {
 					this.mSendReceiveSocket.setSoTimeout(Configurations.TRANMISSION_TIMEOUT * 2);
 					System.err.println("Blocking for next recevied");
 					this.mLastPacket = this.retrievePacketFromSocket();
-					BufferPrinter.printBuffer(this.mLastPacket.getData(), "First reply after lost ack", Logger.ERROR);
+					if(this.mLastPacket != null)
+						BufferPrinter.printBuffer(this.mLastPacket.getData(), "First reply after lost ack", Logger.ERROR);
 					this.mSendReceiveSocket.setSoTimeout(0);
 					if (this.mLastPacket == null) {
 						logger.print(Logger.ERROR, Strings.ERROR_SERVICE_SHUST_DOWN_THREAD);
@@ -632,38 +633,24 @@ public class ErrorSimulatorService implements Runnable {
 				} catch (SocketException e1) {
 					e1.printStackTrace();
 				}
-				System.err.println("Packet from " + this.mLastPacket.getAddress().getHostAddress());
-				directPacketToDestination();
-				System.err.println("Packet redirected to " + this.mLastPacket.getAddress().getHostAddress());
-				try {
-					forwardPacketToSocket(this.mLastPacket);
-					this.mLastPacket = this.retrievePacketFromSocket();
-					this.mPacketSendQueue.addLast(this.mLastPacket);
-				} catch (IOException e) {
-					System.err.println(Strings.ERROR_SERVICE_TIMEOUT_DELAY);
+				if(this.mLastPacket != null) {
+					System.err.println("Packet from " + this.mLastPacket.getAddress().getHostAddress());
+					directPacketToDestination();
+					System.err.println("Packet redirected to " + this.mLastPacket.getAddress().getHostAddress());
+				
+					try {
+						forwardPacketToSocket(this.mLastPacket);
+						this.mLastPacket = this.retrievePacketFromSocket();
+						this.mPacketSendQueue.addLast(this.mLastPacket);
+					} catch (IOException e) {
+						System.err.println(Strings.ERROR_SERVICE_TIMEOUT_DELAY);
+					}
 				}
+				
 
 				break;
 			case 2:
-				// We check this condition since this type packet.
-				// mPacketsProcessed is always ahead of ErrorOccurrences by 1
-				// only gets incremented one way -> messing with client or
-				// server bound packets (set in ES)
-				// mInPacket = (new
-				// PacketBuilder()).constructPacket(mLastPacket);
-				// if (mInPacket.getBlockNumber() !=
-				// this.mErrorSettings.getSimulatedBlocknumber()
-				// || mInPacket.getRequestType() !=
-				// this.mErrorSettings.getTransmissionErrorType()
-				// || this.mDelayPacketPerformed) {
-				// // System.err.println(String.format("%d =? %d %d =? %d",
-				// // mInPacket.getBlockNumber(),this.mPacketBlock,
-				// // mInPacket.getRequestType().getOptCode(),
-				// //
-				// this.mErrorSettings.getTransmissionErrorType().getOptCode()
-				// // ));
-				// return;
-				// }
+	
 				logger.print(Logger.ERROR, String.format(Strings.ERROR_SERVICE_DELAY_ATTEMP, inPacket.getData()[1]));
 
 				// Delay a packet
